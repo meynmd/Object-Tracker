@@ -1,0 +1,100 @@
+% Code For Step 1:
+
+function p = plotInterestPoints(file)
+    img = imread(file);
+    img = rgb2gray(img);
+    %p = detectSURFFeatures(img);
+    p = detectSURFFeatures(img, 'MetricThreshold', 7500.0);
+    imshow(img);
+    hold on;
+    plot(p.selectStrongest(100));
+end
+
+
+
+
+
+
+% Code Snippet for Step 2:
+
+% From main script:
+
+    for i = 2:lastIdx
+        img1 = loadImgGray(char(files(i - 1)));
+        img2 = loadImgGray(char(files(i)));
+        d = round(findDistance(img1, img2));
+        bbCorners(i,1) = bbCorners((i - 1),1) + d(1);
+        bbCorners(i,2) = bbCorners((i - 1),2) + d(2);
+        bbCorners(i,3) = bbCorners((i - 1),3) + d(1);
+        bbCorners(i,4) = bbCorners((i - 1),4) + d(2);
+
+% find delta between frames
+
+function [dist] = findDistance(img1, img2)
+
+    [p1, p2] = getMatchingPoints(img1, img2);
+
+    loc1 = p1.Location;
+    loc2 = p2.Location;
+    dX = 0;
+    dY = 0;
+    
+    if size(loc1, 1) ~= size(loc2, 1)
+        error('images do not have same number of features');
+    end
+    
+    d = size(loc1);
+    numPoints = d(1);
+    dists = zeros(numPoints, 3);
+
+    for i = 1:numPoints
+        dists(i, 1) = loc2(i, 1) - loc1(i, 1);
+        dists(i, 2) = loc2(i, 2) - loc1(i, 2);
+        x = dists(i, 1);
+        y = dists(i, 2);
+        dists(i, 3) = sqrt(x*x + y*y);
+    end
+    
+    distsSorted = sortrows(dists, 3);
+    idx = round(numPoints / 2);
+    medDist = distsSorted(idx, :);
+            
+    dist = [medDist(1) medDist(2)];
+    
+end
+
+% find the matching points between img1, img2
+
+function [points1, points2] = getMatchingPoints(img1, img2)
+    [f1, v1] = getFeatures(img1);
+    [f2, v2] = getFeatures(img2);
+    
+    pairs = matchFeatures(f1, f2);
+    points1 = v1(pairs(:, 1), :);
+    points2 = v2(pairs(:, 2), :);
+end
+
+% Modularize extraction to make it easy to try different algorithms
+
+function [feat, vis] = getFeatures(img) 
+    sf = detectSURFFeatures(img, 'MetricThreshold', 7500.0);    
+    [feat, vis] = extractFeatures(img, sf);
+end
+
+
+
+
+
+% Code snippet for Step 3:
+
+    errors = zeros(numFiles + 1, 1);
+    for i = 1:size(bbCorners,1)
+        cx = (bbCorners(i, 1) + bbCorners(i, 3)) / 2;
+        cy = (bbCorners(i, 2) + bbCorners(i, 4)) / 2;
+        gx = (gtBoxes(i, 1) + gtBoxes(i, 3)) / 2;
+        gy = (gtBoxes(i, 2) + gtBoxes(i, 4)) / 2;
+        deltaX = gx - cx; deltaY = gy - cy;
+        errors(i) = sqrt(deltaX * deltaX + deltaY * deltaY);
+    end
+
+    errors(numFiles + 1) = mean(errors);
